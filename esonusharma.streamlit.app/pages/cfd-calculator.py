@@ -14,7 +14,7 @@ def cfd_calculator():
         viscosity = st.number_input("Viscosity (mu)", min_value=0.0000001, value=0.00001849)
         velocity = st.number_input("Velocity (u)", min_value=0.1, value=1.0)
         length = st.number_input("Length (L)", min_value=0.00001, value=1.0)
-        yplus = st.number_input("Y Plus (y+)", min_value=1, value=1.0)
+        yplus = st.number_input("Y Plus (y+)", min_value=1.0, value=1.0)
         # Perform calculations
         re = density * velocity * length / viscosity
         cf = (2 * np.log10(re) - 0.65)**(-2.3)
