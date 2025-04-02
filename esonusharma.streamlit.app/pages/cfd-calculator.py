@@ -12,9 +12,9 @@ def cfd_calculator():
         gr = st.number_input("Growth Ratio (GR)", min_value=1.0, max_value=2.0, value=1.2, step=0.01)
         density = st.number_input("Density (rho)", min_value=0.1, value=1.1839)
         viscosity = st.number_input("Viscosity (mu)", min_value=0.0000001, value=0.00001849)
-        velocity = st.number_input("Velocity (u)", min_value=0.1, value=1)
-        length = st.number_input("Length (L)", min_value=0.00001, value=1)
-        yplus = st.number_input("Y Plus (y+)", min_value=1, value=1)
+        velocity = st.number_input("Velocity (u)", min_value=0.1, value=1.0)
+        length = st.number_input("Length (L)", min_value=0.00001, value=1.0)
+        yplus = st.number_input("Y Plus (y+)", min_value=1, value=1.0)
         # Perform calculations
         re = density * velocity * length / viscosity
         cf = (2 * np.log10(re) - 0.65)**(-2.3)
