@@ -4,6 +4,44 @@ import pandas as pd
 USERNAME = "admin"
 PASSWORD = "r2f"
 
+auth = st.login()
+
+if auth:
+    st.success(f"Welcome, {auth.username}!")
+
+    st.title("3 Worst Drawdowns Analyzer")
+
+    uploaded_file = st.file_uploader("Upload your Excel file", type=["xlsx"])
+
+    if uploaded_file:
+        try:
+            df = pd.read_excel(uploaded_file)
+            st.write("Excel Preview:")
+            st.dataframe(df)
+
+            column = st.selectbox("Pick a column", df.columns)
+
+            if column:
+                numeric_values = pd.to_numeric(df[column], errors="coerce").dropna()
+                filtered_dropdowns = numeric_values.nlargest(3)
+                st.write(f"3 Worst Drawdowns in '{column}':")
+                st.write(filtered_dropdowns)
+        except Exception as e:
+            st.error(f"Error processing file: {e}")
+else:
+    st.warning("Please log in to use the app.")
+
+
+
+
+
+
+
+
+
+
+
+
 def login():
     st.title("Login")
 
