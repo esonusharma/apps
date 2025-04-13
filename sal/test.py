@@ -4,100 +4,131 @@ from docx.shared import Pt, Inches
 from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
 from io import BytesIO
 
-def generate_docx(data, image_file=None):
+def generate_placeholder_doc(data, image_file=None):
     doc = Document()
 
-    # Set font style
+    # Set font
     style = doc.styles['Normal']
     font = style.font
     font.name = 'Times New Roman'
     font.size = Pt(12)
 
-    # Add table for image (right-aligned)
-    img_table = doc.add_table(rows=1, cols=2)
-    img_cells = img_table.rows[0].cells
-    img_cells[0].text = ""
+    # Page 1
     if image_file:
+        table_img = doc.add_table(rows=1, cols=2)
+        img_cells = table_img.rows[0].cells
+        img_cells[0].text = ""
         run = img_cells[1].paragraphs[0].add_run()
         run.add_picture(image_file, width=Inches(1.0))
-    img_cells[1].paragraphs[0].alignment = WD_PARAGRAPH_ALIGNMENT.RIGHT
+        img_cells[1].paragraphs[0].alignment = WD_PARAGRAPH_ALIGNMENT.RIGHT
 
-    # Ref No. and Date
-    ref_table = doc.add_table(rows=1, cols=2)
-    ref_table.autofit = False
-    ref_table.columns[0].width = Inches(5.5)
-    ref_table.columns[1].width = Inches(1.5)
+    table = doc.add_table(rows=1, cols=2)
+    cells = table.rows[0].cells
+    cells[0].text = f"Ref. No.: CUIET/MED/SAL/{data['year']}/{data['semester']}/<<notice11>>"
+    cells[1].text = f"Date: {data['date']}"
+    cells[1].paragraphs[0].alignment = WD_PARAGRAPH_ALIGNMENT.RIGHT
 
-    ref_cells = ref_table.rows[0].cells
-    ref_cells[0].text = f"Ref. No.: CUIET/MED/SAL/{data['year']}/{data['semester']}/{data['notice11']}"
-    ref_cells[1].text = f"Date: {data['date']}"
-    ref_cells[1].paragraphs[0].alignment = WD_PARAGRAPH_ALIGNMENT.RIGHT
+    doc.add_paragraph(f"\nDepartment of <<department>>").alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+    doc.add_paragraph("CUIET – Applied Engineering").alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+    doc.add_paragraph("\nNotice").alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
 
-    # Header
-    doc.add_paragraph('\nDepartment of ' + data['department']).alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
-    doc.add_paragraph('CUIET – Applied Engineering').alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
-
-    # Notice
-    doc.add_paragraph('\nNotice').alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
-    doc.add_paragraph('\nSubject: Identification of Slow and Advanced Learners')
-
-    body = (
-        f"The below mentioned students of {data['branch']} {data['session']} session July – Dec 2023 were classified "
-        "into the Slow and Advanced learners' categories based upon the observations and feedback from the mentors, "
-        f"teachers and academic performance in {data['st']} ST-I. Students, who score marks below {data['slow_threshold']}% "
-        "are categorized as slow learners and above "
-        f"{data['advanced_threshold']}% are categorized as advanced learners. These distinguished parameters enabled in "
-        "identification of advanced learners and slow learners. The details of slow and advanced learners is available in Annexure A1."
+    doc.add_paragraph("\nSubject: Identification of Slow and Advanced Learners\n")
+    doc.add_paragraph(
+        "The below mentioned students of <<Branch>> <<session>> session July –Dec 2023 were classified "
+        "into the Slow and Advanced learners' categories based upon the observations and feedback from "
+        "the mentors, teachers and academic performance in <<st>> ST-I. Students, who score marks below "
+        "<<slow threshold>> are categorized as slow learners and above <<advanced threshold>> are categorized "
+        "as advanced learners. The details of slow and advanced learners is available in Annexure A1."
     )
-    doc.add_paragraph('\n' + body)
-    doc.add_paragraph('\nNote: Mentors are requested to inform the above students.')
+    doc.add_paragraph("\nNote: Mentors are requested to inform the above students.")
+    doc.add_table(rows=1, cols=2).rows[0].cells[0].text = "\n\nDean"
+    doc.tables[-1].rows[0].cells[1].text = "\n\nMentor"
+    doc.tables[-1].rows[0].cells[1].paragraphs[0].alignment = WD_PARAGRAPH_ALIGNMENT.RIGHT
+    doc.add_paragraph("\ncc:\n-Notice Board\n-Departmental File\n-Mentoring File")
 
-    # Signature block
-    sign_table = doc.add_table(rows=1, cols=2)
-    sign_cells = sign_table.rows[0].cells
-    sign_cells[0].paragraphs[0].add_run("\n\nDean")
-    sign_cells[1].paragraphs[0].add_run("\n\nMentor")
-    sign_cells[1].paragraphs[0].alignment = WD_PARAGRAPH_ALIGNMENT.RIGHT
+    doc.add_page_break()
 
-    doc.add_paragraph('\ncc:\n\n-Notice Board\n\n-Departmental File\n\n-Mentoring File')
+    # Page 2
+    doc.add_paragraph(f"Ref. No.: CUIET/MED/SAL/{data['year']}/{data['semester']}/<<notice12>>\t\t\t\tDate: {data['date']}")
+    doc.add_paragraph(f"\nDepartment of <<department>>").alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+    doc.add_paragraph("CUIET – Applied Engineering").alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+    doc.add_paragraph("\nNotice").alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+    doc.add_paragraph("\nSubject: Schedule of extra classes\n\nList of Subjects to be offered\n\n<<list of subjects st1>>")
+    doc.add_paragraph("Note: The extra classes on all non-teaching working days are being offered to the 3rd semester <<branch>> students (Slow Learners).")
+    doc.add_paragraph("\n\nSubject\nSemester\nDate\nTime\nVenue\n\n" + ("<<data>>\n" * 5))
+    doc.add_table(rows=1, cols=2).rows[0].cells[0].text = "\n\nDean"
+    doc.tables[-1].rows[0].cells[1].text = "\n\nMentor"
+    doc.tables[-1].rows[0].cells[1].paragraphs[0].alignment = WD_PARAGRAPH_ALIGNMENT.RIGHT
+    doc.add_paragraph("\ncc:\n-Notice Board\n-Departmental File\n-Mentoring File")
+    doc.add_page_break()
 
-    # Save to buffer
+    # Page 3: Action Taken
+    doc.add_paragraph("\nDepartment of <<department>>\nCUIET – Applied Engineering\n\nAction Taken Report")
+    doc.add_paragraph(
+        "A Departmental Meeting was held to discuss the provision made and to formulate the adapted teaching methodology "
+        "for the slow and advanced learners of <<semester>> (Batch: <<batch>>) students\n"
+        "\nAction Taken for Slow Learners:\nExtra Classes\nList of Subjects to be offered:\nSubject Name (CODE)\n"
+        "Subject Name (CODE)\n\nNote: The Classes will be offered as per the Schedule given in reference no. <<notice12>>.\n"
+        "\nTeaching Methodology:\nLectures supported with visual modes\nAssignments, viva-voce, quizzes"
+    )
+    doc.add_paragraph("\nAction taken for Advanced Learners:\nNPTEL Lectures\nSkill enrichment")
+
+    doc.add_paragraph("\n\nDate: <<date st1 next>>\nProgram Incharge\nDepartment of <<department>>")
+    doc.add_page_break()
+
+    # Page 4: Attendance
+    doc.add_paragraph("\nDepartment of <<department>>\nCUIET – Applied Engineering\n\nAttendance")
+    doc.add_paragraph("Subject Name: <<subject name>>\nSubject Code: <<subject code>>\nBatch/Semester:")
+    doc.add_paragraph("\nS.No\tUID.no\tName\tDate\n" + "<<rows>>\n" * 5)
+    doc.add_paragraph("\nSignature of Subject Incharge\nDepartment of <<department>>")
+    doc.add_page_break()
+
+    # Page 5: Performance
+    doc.add_paragraph("\nDepartment of <<department>>\nCUIET – Applied Engineering\n\nPerformance Report")
+    doc.add_paragraph("Slow Learners:\nClasses were provided and improvements are noted in ST-2.")
+    doc.add_paragraph("Name\tUID\tSemester\tSubject Code\tST-1\t%\tST-2\t%")
+    doc.add_paragraph("<<data>>\n" * 3)
+    doc.add_paragraph("Advanced Learners: NPTEL courses were suggested for skill enhancement.")
+    doc.add_paragraph("Date:\nProgram Incharge\nDepartment of <<department>>")
+
+    doc.add_page_break()
+
+    # Final ST-I + ST-II Based Notice
+    doc.add_paragraph("Ref. No.: - CUIET/MED/SAL/<<year>>/<<semester>>/<<notice21>>\t\tDate: ")
+    doc.add_paragraph("\nDepartment of <<department>>\nCUIET – Applied Engineering\n\nNotice")
+    doc.add_paragraph(
+        "\nSubject: Identification of Slow and Advanced Learners\n\n"
+        "The students of <<Branch>> <<session>> were classified based on observations and performance in ST-I and ST-II. "
+        "Below <<slow threshold>> in ST-2 = Slow, above <<advanced threshold>> = Advanced. See <<Annexure A2>>.\n\n"
+        "Note: Mentors are requested to inform the above students."
+    )
+    doc.add_table(rows=1, cols=2).rows[0].cells[0].text = "\n\nDean"
+    doc.tables[-1].rows[0].cells[1].text = "\n\nMentor"
+    doc.tables[-1].rows[0].cells[1].paragraphs[0].alignment = WD_PARAGRAPH_ALIGNMENT.RIGHT
+    doc.add_paragraph("\ncc:\n-Notice Board\n-Departmental File\n-Mentoring File")
+
     buffer = BytesIO()
     doc.save(buffer)
     buffer.seek(0)
     return buffer
 
-# Streamlit App
-st.title("Notice Generator")
+# === Streamlit App ===
+st.title("Minimal Placeholder Notice Generator")
 
 with st.sidebar:
-    st.header("Input Fields")
+    st.header("Inputs")
     year = st.text_input("Year", "2025")
-    semester = st.text_input("Semester", "02")
-    notice11 = st.text_input("Notice No", "011")
+    semester = st.text_input("Semester", "03")
     date = st.text_input("Date", "10-04-2025")
-    department = st.text_input("Department", "Mechanical Engineering")
-    branch = st.text_input("Branch", "ME")
-    session = st.text_input("Session", "2022–26")
-    st_input = st.text_input("ST", "1st")
-    slow_threshold = st.text_input("Slow Learner Threshold (%)", "40")
-    advanced_threshold = st.text_input("Advanced Learner Threshold (%)", "75")
-    image_file = st.file_uploader("Upload Logo Image", type=["png", "jpg"])
+    logo = st.file_uploader("Upload Logo (optional)", type=["png", "jpg"])
 
 data = {
     "year": year,
     "semester": semester,
-    "notice11": notice11,
     "date": date,
-    "department": department,
-    "branch": branch,
-    "session": session,
-    "st": st_input,
-    "slow_threshold": slow_threshold,
-    "advanced_threshold": advanced_threshold
 }
 
-if st.button("Generate Notice"):
-    docx_file = generate_docx(data, image_file)
-    st.success("Notice generated!")
-    st.download_button("Download .docx", data=docx_file, file_name="Generated_Notice.docx")
+if st.button("Generate Placeholder Document"):
+    file = generate_placeholder_doc(data, logo)
+    st.success("Placeholder document ready!")
+    st.download_button("📄 Download DOCX", data=file, file_name="Notice_Placeholder.docx")
