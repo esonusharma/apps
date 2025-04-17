@@ -39,7 +39,7 @@ def process_file(uploaded_file):
     df = pd.read_excel(uploaded_file)
     required_columns = [
         'Roll No.', 'Student Name', 'Subject Code', 'Subject Name',
-        'Branch', 'Batch', 'Semester', 'ST1 Percentage', 'ST2 Percentage'
+        'Branch', 'Batch', 'ST1 Percentage', 'ST2 Percentage'
     ]
     df = df[required_columns]
     df['ST1 Percentage'] = df['ST1 Percentage'].apply(sanitize_percent).astype(float)
@@ -75,11 +75,6 @@ def add_heading(doc, text, size=12, align='center'):
     else:
         para.alignment = WD_ALIGN_PARAGRAPH.LEFT
 
-def format_cell_value(val):
-    if isinstance(val, float) and val.is_integer():
-        return str(int(val))
-    return str(val)
-
 def add_table(doc, df, columns):
     table = doc.add_table(rows=1, cols=len(columns))
     set_table_borders(table)
@@ -89,8 +84,8 @@ def add_table(doc, df, columns):
     for _, row in df.iterrows():
         cells = table.add_row().cells
         for i, col in enumerate(columns):
-            value = format_cell_value(row.get(col, ''))
-            cells[i].text = value
+            value = row.get(col, '')
+            cells[i].text = str(value)
     return table
 
 def annexure_A(doc, df, test_name, annexure_code):
@@ -98,7 +93,8 @@ def annexure_A(doc, df, test_name, annexure_code):
     add_heading(doc, f"Annexure {annexure_code}", 14)
     add_heading(doc, "Slow and Advanced Learners", 12)
     sample = df.iloc[0]
-    add_heading(doc, f"List of Slow and Advanced Learners in {test_name} (Batch: {int(sample['Batch']) if isinstance(sample['Batch'], float) and sample['Batch'].is_integer() else sample['Batch']}, Semester: {int(sample['Semester']) if isinstance(sample['Semester'], float) and sample['Semester'].is_integer() else sample['Semester']})", 12, 'left')
+    semester = sample['Subject Code'][1] if 'Subject Code' in sample and isinstance(sample['Subject Code'], str) else 'NA'
+    add_heading(doc, f"List of Slow and Advanced Learners in {test_name} (Batch: {sample['Batch']}, Semester: {semester})", 12, 'left')
     filtered = df[df[f'{test_name} Status'].isin(['Slow Learner', 'Advanced Learner']) & df['Branch'].isin(['AE', 'ME', 'ME Minor CSE'])]
     columns = ['Roll No.', 'Student Name', 'Subject Code', 'Subject Name', 'Branch', f'{test_name} Percentage', f'{test_name} Status']
     add_table(doc, filtered, columns)
@@ -108,7 +104,8 @@ def annexure_B(doc, df, test_name, annexure_code):
     add_heading(doc, f"Annexure {annexure_code}", 14)
     add_heading(doc, "Time Table", 12)
     slow_df = df[df[f'{test_name} Status'] == 'Slow Learner']
-    subjects = slow_df[['Subject Code', 'Subject Name', 'Semester', 'Branch']].drop_duplicates()
+    subjects = slow_df[['Subject Code', 'Subject Name', 'Branch']].drop_duplicates()
+    subjects['Semester'] = subjects['Subject Code'].str[1]
     subjects['Date'] = ''
     subjects['Time'] = '1000 HRS to 1600 HRS'
     subjects['Venue'] = 'online'
@@ -145,8 +142,8 @@ def annexure_D(doc, df, test_name, annexure_code):
 def generate_grouped_docs(df):
     zip_buffer = BytesIO()
     with zipfile.ZipFile(zip_buffer, "w") as zipf:
-        grouped = df.groupby(['Batch', 'Branch', 'Semester'])
-        for (batch, branch, semester), group in grouped:
+        grouped = df.groupby(['Batch', 'Branch'])
+        for (batch, branch), group in grouped:
             if branch not in ['AE', 'ME', 'ME Minor CSE']:
                 continue
             doc = Document()
@@ -166,8 +163,7 @@ def generate_grouped_docs(df):
             doc.save(doc_buffer)
             doc_buffer.seek(0)
 
-            session = str(int(group['Batch'].iloc[0])) if isinstance(group['Batch'].iloc[0], float) and group['Batch'].iloc[0].is_integer() else str(group['Batch'].iloc[0])
-            filename = f"{session}_{branch}_{int(semester) if isinstance(semester, float) and semester.is_integer() else semester}_Annexures.docx"
+            filename = f"{batch}_{branch}_Annexures.docx"
             zipf.writestr(filename, doc_buffer.read())
 
     zip_buffer.seek(0)
@@ -187,7 +183,7 @@ if uploaded_files:
     final_zip = generate_grouped_docs(all_data)
 
     st.download_button(
-        label="📦 Download All Annexures as ZIP",
+        label="📆 Download All Annexures as ZIP",
         data=final_zip,
         file_name="All_Annexures.zip",
         mime="application/zip"

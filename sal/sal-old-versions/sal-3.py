@@ -98,7 +98,7 @@ def annexure_A(doc, df, test_name, annexure_code):
     add_heading(doc, f"Annexure {annexure_code}", 14)
     add_heading(doc, "Slow and Advanced Learners", 12)
     sample = df.iloc[0]
-    add_heading(doc, f"List of Slow and Advanced Learners in {test_name} (Batch: {int(sample['Batch']) if isinstance(sample['Batch'], float) and sample['Batch'].is_integer() else sample['Batch']}, Semester: {int(sample['Semester']) if isinstance(sample['Semester'], float) and sample['Semester'].is_integer() else sample['Semester']})", 12, 'left')
+    add_heading(doc, f"List of Slow and Advanced Learners in {test_name} (Batch: {sample['Batch']}, Semester: {sample['Semester']})", 12, 'left')
     filtered = df[df[f'{test_name} Status'].isin(['Slow Learner', 'Advanced Learner']) & df['Branch'].isin(['AE', 'ME', 'ME Minor CSE'])]
     columns = ['Roll No.', 'Student Name', 'Subject Code', 'Subject Name', 'Branch', f'{test_name} Percentage', f'{test_name} Status']
     add_table(doc, filtered, columns)
@@ -166,8 +166,7 @@ def generate_grouped_docs(df):
             doc.save(doc_buffer)
             doc_buffer.seek(0)
 
-            session = str(int(group['Batch'].iloc[0])) if isinstance(group['Batch'].iloc[0], float) and group['Batch'].iloc[0].is_integer() else str(group['Batch'].iloc[0])
-            filename = f"{session}_{branch}_{int(semester) if isinstance(semester, float) and semester.is_integer() else semester}_Annexures.docx"
+            filename = f"Session_{branch}_{semester}_Annexures.docx"
             zipf.writestr(filename, doc_buffer.read())
 
     zip_buffer.seek(0)
