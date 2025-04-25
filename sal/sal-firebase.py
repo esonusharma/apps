@@ -13,7 +13,7 @@ import firebase_admin
 from firebase_admin import credentials, firestore
 
 if not firebase_admin._apps:
-    cred = credentials.Certificate("firebase_key.json")  # Replace with your actual key file path
+    cred = credentials.Certificate(".streamlit/firebase_key.json")  # Replace with your actual key file path
     firebase_admin.initialize_app(cred)
 db = firestore.client()
 
@@ -58,23 +58,17 @@ def process_file(uploaded_file):
     return df
 
 def upload_to_firestore(df):
-    grouped = df.groupby('Subject Code')
-    for subject_code, group in grouped:
-        collection_ref = db.collection(subject_code)
-        for _, row in group.iterrows():
-            doc_data = row.to_dict()
-            doc_id = f"{doc_data['Roll No.']}_{doc_data['Subject Code']}"
-            collection_ref.document(doc_id).set(doc_data)
+    collection_ref = db.collection("student_data")  # Single collection
+    for _, row in df.iterrows():
+        doc_data = row.to_dict()
+        doc_id = f"{doc_data['Roll No.']}_{doc_data['Subject Code']}"
+        collection_ref.document(doc_id).set(doc_data)
 
 def fetch_all_subject_data():
-    all_data = pd.DataFrame()
-    collections = db.collections()
-    for collection in collections:
-        docs = collection.stream()
-        records = [doc.to_dict() for doc in docs]
-        if records:
-            all_data = pd.concat([all_data, pd.DataFrame(records)], ignore_index=True)
-    return all_data
+    collection_ref = db.collection("student_data")
+    docs = collection_ref.stream()
+    records = [doc.to_dict() for doc in docs]
+    return pd.DataFrame(records)
 
 def set_table_borders(table):
     tbl = table._tbl
@@ -203,12 +197,13 @@ def generate_grouped_docs(df):
 st.title("📚 Annexure Generator for Slow and Advanced Learners")
 
 if uploaded_files:
-    all_data = pd.DataFrame()
-    for file in uploaded_files:
-        df = process_file(file)
-        upload_to_firestore(df)
-        all_data = pd.concat([all_data, df], ignore_index=True)
-    st.success("✅ Files uploaded and stored to Firestore successfully!")
+    if st.button("⬆️ Upload and Save to Firestore"):
+        all_data = pd.DataFrame()
+        for file in uploaded_files:
+            df = process_file(file)
+            upload_to_firestore(df)
+            all_data = pd.concat([all_data, df], ignore_index=True)
+        st.success("✅ Files uploaded and stored to Firestore successfully!")
 
 if st.button("📥 Generate Annexures from Firestore Data"):
     st.info("Fetching data from Firestore...")
