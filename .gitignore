@@ -2,6 +2,7 @@ esonusharma.streamlit.app/.streamlit
 00000001-7-1/.streamlit
 00000001-7-1/.venv
 sal/.venv
+sal/.streamlit
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
