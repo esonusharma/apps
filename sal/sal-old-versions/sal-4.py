@@ -26,18 +26,14 @@ def classify_student(percentage):
     else:
         return 'Average Learner'
 
-
-
 def sanitize_percent(value):
-    if pd.isna(value):
-        return 'A'
     str_val = str(value).strip().lower()
-    if str_val in ['a', 'ab', 'absent']:
-        return 'A'
+    if str_val in ['a', 'absent']:
+        return 0.0
     try:
         return float(value)
     except:
-        return 'A'
+        return 0.0
 
 def process_file(uploaded_file):
     df = pd.read_excel(uploaded_file)
@@ -46,16 +42,10 @@ def process_file(uploaded_file):
         'Branch', 'Batch', 'Semester', 'ST1 Percentage', 'ST2 Percentage'
     ]
     df = df[required_columns]
-    df['ST1 Percentage'] = df['ST1 Percentage'].apply(sanitize_percent)
-    df['ST2 Percentage'] = df['ST2 Percentage'].apply(sanitize_percent)
-
-    def classify_wrapper(val):
-        if val == 'A':
-            return 'Slow Learner'
-        return classify_student(val)
-
-    df['ST1 Status'] = df['ST1 Percentage'].apply(classify_wrapper)
-    df['ST2 Status'] = df['ST2 Percentage'].apply(classify_wrapper)
+    df['ST1 Percentage'] = df['ST1 Percentage'].apply(sanitize_percent).astype(float)
+    df['ST2 Percentage'] = df['ST2 Percentage'].apply(sanitize_percent).astype(float)
+    df['ST1 Status'] = df['ST1 Percentage'].apply(classify_student)
+    df['ST2 Status'] = df['ST2 Percentage'].apply(classify_student)
     return df
 
 def set_table_borders(table):
@@ -86,18 +76,9 @@ def add_heading(doc, text, size=12, align='center'):
         para.alignment = WD_ALIGN_PARAGRAPH.LEFT
 
 def format_cell_value(val):
-    if pd.isna(val):
-        return 'A'
-    str_val = str(val).strip().lower()
-    if str_val in ['a', 'ab', 'absent']:
-        return 'A'
-    try:
-        num = float(val)
-        if num.is_integer():
-            return str(int(num))
-        return f"{num:.2f}"
-    except:
-        return str(val)
+    if isinstance(val, float) and val.is_integer():
+        return str(int(val))
+    return str(val)
 
 def add_table(doc, df, columns):
     table = doc.add_table(rows=1, cols=len(columns))
@@ -105,18 +86,11 @@ def add_table(doc, df, columns):
     hdr_cells = table.rows[0].cells
     for i, col in enumerate(columns):
         hdr_cells[i].text = col
-        for para in hdr_cells[i].paragraphs:
-            para.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        hdr_cells[i].vertical_alignment = WD_ALIGN_PARAGRAPH.CENTER
     for _, row in df.iterrows():
         cells = table.add_row().cells
         for i, col in enumerate(columns):
-            raw_val = row.get(col, '')
-            value = format_cell_value(raw_val)
+            value = format_cell_value(row.get(col, ''))
             cells[i].text = value
-            for para in cells[i].paragraphs:
-                para.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            cells[i].vertical_alignment = WD_ALIGN_PARAGRAPH.CENTER
     return table
 
 def annexure_A(doc, df, test_name, annexure_code):
