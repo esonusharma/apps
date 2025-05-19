@@ -4,7 +4,7 @@ esonusharma.streamlit.app/.streamlit
 sal/.venv
 sal/.streamlit
 nba/.venv
-nba/.streamlit
+nba/.streamlit/secrets.toml
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
