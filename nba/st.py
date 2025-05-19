@@ -9,7 +9,7 @@ from openpyxl.utils import get_column_letter
 
 st.title("ST Marks Splitter")
 
-st.markdown("[Sample Input File](/static/sample-input-file.xlsx)")
+st.markdown("Upload Excel File with Columns | # | College Roll No. | Name | marks |")
 
 uploaded_files = st.file_uploader("Upload Excel files", type=["xlsx"], accept_multiple_files=True)
 
