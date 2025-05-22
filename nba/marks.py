@@ -9,10 +9,15 @@ from openpyxl.styles import Border, Side, Alignment, PatternFill
 from openpyxl.utils import get_column_letter
 
 # Streamlit UI setup
-st.sidebar.title("📊 NBA Marks Processing Panel")
-uploaded_files = st.sidebar.file_uploader("Upload Excel files", type=["xlsx"], accept_multiple_files=True)
+st.sidebar.title("Input/Output")
 generate_sample_button = st.sidebar.button("Generate Sample Input File")
+uploaded_files = st.sidebar.file_uploader("Upload Excel files", type=["xlsx"], accept_multiple_files=True)
 process_button = st.sidebar.button("Start Processing")
+st.sidebar.subheader(":rainbow[Developed by Dr. Sonu Sharma]")
+
+st.title("📊 Welcome to NBA Marks Processing Panel")
+st.header("Initiative by :green[Centre of Excellence, Modelling and Simulation]", divider="rainbow")
+st.subheader("Department of Mechanical Engineering, CUIET-AE, Chitkara University, Punjab", divider="rainbow")
 
 # Structures
 structure_13 = {
