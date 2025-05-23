@@ -91,7 +91,7 @@ def split_marks(total, structure, na_groups):
     idx = 0
     for col in max_cols:
         if col in na_choices:
-            result[col] = "N/A"
+            result[col] = "U"
         else:
             result[col] = scaled[idx]
             idx += 1
