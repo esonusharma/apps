@@ -7,7 +7,9 @@ from openpyxl import load_workbook
 from openpyxl.styles import Border, Side, Alignment, PatternFill
 from openpyxl.utils import get_column_letter
 
-st.title("ST Marks Splitter")
+st.title("📊 Welcome to NBA ST Marks Splitting Panel")
+st.header("Initiative by :green[Centre of Excellence, Modelling and Simulation]", divider="rainbow")
+st.subheader("Department of Mechanical Engineering, CUIET-AE, Chitkara University, Punjab", divider="rainbow")
 
 st.markdown("Upload Excel File with Columns | # | College Roll No. | Name | marks |")
 
