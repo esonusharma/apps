@@ -16,32 +16,33 @@ def map_marks(super_df, input_df):
     input_id_col = 'Admission No. (Roll No.)'
     input_course_col = 'Course Code'
 
-    # Clean merge keys
+    # Clean keys
     super_df[super_id_col] = clean_col(super_df[super_id_col])
     super_df[super_course_col] = clean_col(super_df[super_course_col])
     input_df[input_id_col] = clean_col(input_df[input_id_col])
     input_df[input_course_col] = clean_col(input_df[input_course_col])
 
-    # Sum Q1 parts
+    # Combine Q1 parts
     q1_parts = [
         'Obtained Marks Of Q1 \n (a)', 'Obtained Marks Of Q1 \n (b)',
         'Obtained Marks Of Q1 \n (c)', 'Obtained Marks Of Q1 \n (d)',
         'Obtained Marks Of Q1 \n (e)'
     ]
     if all(part in input_df.columns for part in q1_parts):
+        input_df[q1_parts] = input_df[q1_parts].apply(pd.to_numeric, errors='coerce')
         input_df['Obtained Marks Of Q1'] = input_df[q1_parts].sum(axis=1)
 
-    # Add Q2 if present
+    # Gather available question marks
     available_questions = []
     for i in range(1, 17):
         col = f'Obtained Marks Of Q{i}'
         if col in input_df.columns:
+            input_df[col] = pd.to_numeric(input_df[col], errors='coerce')
             available_questions.append(i)
 
-    # Required columns
     input_df = input_df[[input_id_col, input_course_col] + [f'Obtained Marks Of Q{i}' for i in available_questions]]
 
-    # Merge
+    # Merge input with super
     merged_df = pd.merge(
         super_df,
         input_df,
@@ -50,18 +51,17 @@ def map_marks(super_df, input_df):
         right_on=[input_id_col, input_course_col]
     )
 
-    # Map marks to ete-q1 to ete-q16
+    # Map into ete-q1 to ete-q16
     for i in available_questions:
         src_col = f'Obtained Marks Of Q{i}'
         dest_col = f'ete-q{i}'
         if dest_col in merged_df.columns:
             merged_df[dest_col] = merged_df[src_col]
 
-    # Drop helper columns
     drop_cols = [input_id_col, input_course_col] + [f'Obtained Marks Of Q{i}' for i in available_questions]
     merged_df.drop(columns=drop_cols, inplace=True, errors='ignore')
 
-    # Ensure all ete-q1 to ete-q16 exist
+    # Ensure all ete-q1 to ete-q16 columns exist
     for i in range(1, 17):
         col = f'ete-q{i}'
         if col not in merged_df.columns:
@@ -108,22 +108,19 @@ def export_with_highlight(df, filename="Mapped_ETE_Marks_Highlighted.xlsx"):
     wb.save(filename)
     return filename
 
-# Upload section
+# Upload
 super_file = st.file_uploader("📁 Upload Super File (Excel)", type=["xlsx"])
 input_files = st.file_uploader("📂 Upload One or More Input Files", type=["xlsx"], accept_multiple_files=True)
 
 if super_file and input_files:
     try:
-        # Load super file with correct dtype
         super_df = pd.read_excel(super_file, dtype=str)
-        # Load and combine all input files
         input_df_list = []
         for file in input_files:
             df = pd.read_excel(file, dtype=str)
             input_df_list.append(df)
         input_df = pd.concat(input_df_list, ignore_index=True)
 
-        # Check for required columns
         if 'id' not in super_df.columns or 'course-code' not in super_df.columns:
             st.error("❌ Super file must contain 'id' and 'course-code'.")
         elif 'Admission No. (Roll No.)' not in input_df.columns or 'Course Code' not in input_df.columns:
@@ -142,6 +139,5 @@ if super_file and input_files:
 
     except Exception as e:
         st.error(f"❌ Error occurred: {e}")
-
 else:
     st.info("👆 Please upload the Super File and at least one Input File.")
