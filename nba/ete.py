@@ -13,6 +13,12 @@ def map_marks(super_df, input_df):
     input_id_col = 'Admission No. (Roll No.)'
     input_course_col = 'Course Code'
 
+    # Ensure matching datatypes for merge keys
+    super_df[super_id_col] = super_df[super_id_col].astype(str)
+    super_df[super_course_col] = super_df[super_course_col].astype(str)
+    input_df[input_id_col] = input_df[input_id_col].astype(str)
+    input_df[input_course_col] = input_df[input_course_col].astype(str)
+
     # Combine Q1 subparts into one column
     q1_parts = [
         'Obtained Marks Of Q1 \n (a)', 'Obtained Marks Of Q1 \n (b)',
@@ -29,7 +35,7 @@ def map_marks(super_df, input_df):
         if col in input_df.columns:
             available_questions.append(i)
 
-    # Keep necessary columns
+    # Select required columns
     mapping_columns = [input_id_col, input_course_col] + [f'Obtained Marks Of Q{i}' for i in available_questions]
     input_df = input_df[mapping_columns]
 
@@ -42,19 +48,19 @@ def map_marks(super_df, input_df):
         right_on=[input_id_col, input_course_col]
     )
 
-    # Copy marks into corresponding ete-q columns
+    # Copy mapped marks
     for i in available_questions:
         obtained_col = f'Obtained Marks Of Q{i}'
         ete_col = f'ete-q{i}'
         if ete_col in merged_df.columns:
             merged_df[ete_col] = merged_df[obtained_col]
 
-    # Clean up temporary columns
+    # Clean up temp columns
     drop_cols = [f'Obtained Marks Of Q{i}' for i in available_questions]
     drop_cols += [input_id_col, input_course_col]
     merged_df.drop(columns=drop_cols, inplace=True, errors='ignore')
 
-    # Add empty ete-q columns if missing
+    # Add missing ete-q columns if any
     for i in range(1, 17):
         ete_col = f'ete-q{i}'
         if ete_col not in merged_df.columns:
@@ -66,10 +72,10 @@ def map_marks(super_df, input_df):
         if col in merged_df.columns:
             merged_df[col] = merged_df[col].replace(0, 'U')
 
-    # Add highlight column
+    # Highlight missing marks
     def get_highlight(row):
         if all(pd.isna(row[f'ete-q{i}']) for i in range(1, 17)):
-            return 'red' if str(row[super_id_col]) in highlight_red_ids else 'yellow'
+            return 'red' if row[super_id_col] in highlight_red_ids else 'yellow'
         return ''
     merged_df['__highlight__'] = merged_df.apply(get_highlight, axis=1)
 
@@ -112,23 +118,23 @@ if super_file and input_files:
     super_df = pd.read_excel(super_file)
     input_df = pd.concat([pd.read_excel(file) for file in input_files], ignore_index=True)
 
-    # Check column requirements
+    # Check required columns
     if 'id' not in super_df.columns or 'course-code' not in super_df.columns:
-        st.error("Super file must contain 'id' and 'course-code'.")
+        st.error("❌ Super file must contain 'id' and 'course-code'.")
     elif 'Admission No. (Roll No.)' not in input_df.columns or 'Course Code' not in input_df.columns:
-        st.error("Each input file must contain 'Admission No. (Roll No.)' and 'Course Code'.")
+        st.error("❌ Each input file must contain 'Admission No. (Roll No.)' and 'Course Code'.")
     else:
         mapped_df = map_marks(super_df, input_df)
 
         # Preview
-        st.subheader("✅ Mapped Output (Preview)")
+        st.subheader("✅ Mapped Output Preview")
         st.dataframe(mapped_df.drop(columns='__highlight__'), use_container_width=True)
 
-        # Generate downloadable Excel
+        # Download button
         output_filename = "Mapped_ETE_Marks_Highlighted.xlsx"
         export_with_highlight(mapped_df, filename=output_filename)
 
         with open(output_filename, "rb") as f:
-            st.download_button("📥 Download Highlighted Excel", f, file_name=output_filename)
+            st.download_button("📥 Download Excel with Highlight", f, file_name=output_filename)
 else:
-    st.info("📂 Upload a Super File and one or more Input Files to begin.")
+    st.info("📂 Please upload a Super File and one or more Input Files to begin.")
