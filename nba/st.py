@@ -7,13 +7,17 @@ from openpyxl import load_workbook
 from openpyxl.styles import Border, Side, Alignment, PatternFill
 from openpyxl.utils import get_column_letter
 
-st.title("📊 Welcome to NBA ST Marks Splitting Panel")
-st.header("Initiative by :green[Centre of Excellence, Modelling and Simulation]", divider="rainbow")
-st.subheader("Department of Mechanical Engineering, CUIET-AE, Chitkara University, Punjab", divider="rainbow")
+st.sidebar.title(":rainbow[Dr. Sonu Sharma Apps]")
+st.sidebar.subheader("Input/Output")
+st.sidebar.markdown("Upload Excel files with columns:\n- `#`\n- `College Roll No.`\n- `Name`\n- `marks`")
 
-st.markdown("Upload Excel File with Columns | # | College Roll No. | Name | marks |")
+uploaded_files = st.sidebar.file_uploader(
+    "Upload Excel files", type=["xlsx"], accept_multiple_files=True
+)
 
-uploaded_files = st.file_uploader("Upload Excel files", type=["xlsx"], accept_multiple_files=True)
+st.title("📊 ST Marks Processing Panel")
+st.header(":green[ST]", divider="rainbow")
+st.subheader(":red[Divides obtained marks of ST in questions]", divider="rainbow")
 
 def distribute_marks(total_marks):
     structure = {
@@ -38,14 +42,10 @@ def distribute_marks(total_marks):
         if raw_total == 0:
             continue
 
-        # Scale to match total_marks
         scaled = [int(val * total_marks / raw_total) for val in assigned]
-
-        # Clamp to max values
         for i, col in enumerate(allowed_cols):
             scaled[i] = min(scaled[i], structure[col])
 
-        # Adjust to fix rounding error
         current_sum = sum(scaled)
         diff = total_marks - current_sum
         attempts = 0
@@ -108,12 +108,14 @@ def style_excel(file_buffer):
     styled_output.seek(0)
     return styled_output
 
+# Main Output Processing
 if uploaded_files:
     for uploaded_file in uploaded_files:
+        st.markdown(f"### Processing: `{uploaded_file.name}`")
         df = pd.read_excel(uploaded_file)
 
         if 'marks' not in df.columns:
-            st.error(f"'marks' column not found in {uploaded_file.name}")
+            st.error(f"❌ 'marks' column not found in `{uploaded_file.name}`")
             continue
 
         split_rows = []
@@ -132,7 +134,7 @@ if uploaded_files:
         styled_excel = style_excel(buffer)
 
         st.download_button(
-            label=f"Download Processed: {uploaded_file.name}",
+            label=f"📥 Download Processed: {uploaded_file.name}",
             data=styled_excel,
             file_name=f"output_{uploaded_file.name}",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
