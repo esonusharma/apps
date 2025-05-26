@@ -8,11 +8,9 @@ from openpyxl import load_workbook
 from openpyxl.styles import Border, Side, Alignment, PatternFill
 from openpyxl.utils import get_column_letter
 
-# Streamlit UI setup
 st.sidebar.title(":rainbow[Dr. Sonu Sharma Apps]")
 st.sidebar.subheader("Input/Output")
 
-# Direct download of sample input file
 sample_data = pd.DataFrame({
     'sno': [1, 2, 3],
     'id': ['2410994001', '2410994002', '2410994003'],
