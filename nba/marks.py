@@ -9,15 +9,35 @@ from openpyxl.styles import Border, Side, Alignment, PatternFill
 from openpyxl.utils import get_column_letter
 
 # Streamlit UI setup
-st.sidebar.title("Input/Output")
-generate_sample_button = st.sidebar.button("Generate Sample Input File")
+st.sidebar.title(":rainbow[Dr. Sonu Sharma Apps]")
+st.sidebar.subheader("Input/Output")
+
+# Direct download of sample input file
+sample_data = pd.DataFrame({
+    'sno': [1, 2, 3],
+    'id': ['2410994001', '2410994002', '2410994003'],
+    'name': ['avik', 'sanya', 'aman'],
+    'course-code': ['24ME0101', '24ME0102', '24ME0103'],
+    'st1-marks': [39, 38, 36],
+    'st2-marks': [38, 39, 37],
+    'ete-marks': [58, 58, 55]
+})
+sample_buffer = io.BytesIO()
+sample_data.to_excel(sample_buffer, index=False)
+sample_buffer.seek(0)
+st.sidebar.download_button(
+    label="📥 Download Sample Input File",
+    data=sample_buffer,
+    file_name="sample_input.xlsx",
+    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+)
+
 uploaded_files = st.sidebar.file_uploader("Upload Excel files", type=["xlsx"], accept_multiple_files=True)
 process_button = st.sidebar.button("Start Processing")
-st.sidebar.subheader(":rainbow[Developed by Dr. Sonu Sharma]")
 
-st.title("📊 Welcome to NBA Marks Processing Panel")
-st.header("Initiative by :green[Centre of Excellence, Modelling and Simulation]", divider="rainbow")
-st.subheader("Department of Mechanical Engineering, CUIET-AE, Chitkara University, Punjab", divider="rainbow")
+st.title("📊 Combined Marks Processing Panel")
+st.header(":green[ST1, ST2, ETE]", divider="rainbow")
+st.subheader(":red[Divides obtained marks of ST1, ST2, and ETE in questions]", divider="rainbow")
 
 # Structures
 structure_13 = {
@@ -34,27 +54,6 @@ structure_16 = {
 }
 na_groups_13 = [[2, 3, 4, 5, 6, 7], [8, 9, 10, 11], [12, 13]]
 na_groups_16 = [['q2', 'q3', 'q4', 'q5', 'q6', 'q7'], ['q8', 'q9', 'q10', 'q11', 'q12', 'q13'], ['q14', 'q15', 'q16']]
-
-# Sample file generation
-if generate_sample_button:
-    sample_data = pd.DataFrame({
-        'sno': [1, 2, 3],
-        'id': ['2410994001', '2410994002', '2410994003'],
-        'name': ['avik', 'sanya', 'aman'],
-        'course-code': ['24ME0101', '24ME0102', '24ME0103'],
-        'st1-marks': [39, 38, 36],
-        'st2-marks': [38, 39, 37],
-        'ete-marks': [58, 58, 55]
-    })
-    sample_buffer = io.BytesIO()
-    sample_data.to_excel(sample_buffer, index=False)
-    sample_buffer.seek(0)
-    st.sidebar.download_button(
-        label="📥 Download Sample Input File",
-        data=sample_buffer,
-        file_name="sample_input.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    )
 
 # Split marks function
 def split_marks(total, structure, na_groups):
@@ -149,8 +148,7 @@ def process_row(row):
                 out[f"{prefix}-{k}"] = v
     return out, invalid
 
-# File processing
-
+# File processing function
 def process_file(file):
     df = pd.read_excel(file)
     processed = []
