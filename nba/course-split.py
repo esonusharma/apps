@@ -11,6 +11,30 @@ st.subheader(":red[Splits the courses in separate excel sheets]", divider="rainb
 st.sidebar.title(":rainbow[Dr. Sonu Sharma Apps]")
 st.sidebar.subheader("Input/Output")
 
+# 1. Auto-download sample input file (no button needed)
+sample_data = {
+    'id': ['23ME1001', '23ME1002'],
+    'name': ['Alice', 'Bob'],
+    'course-code': ['24MEC0505', '24MEC0505'],
+    **{f'st1-{i}': [i, i+1] for i in range(1, 11)},
+    **{f'st2-{i}': [i, i+1] for i in range(1, 11)},
+    **{f'ete-q{i}': [i, i+1] for i in range(1, 14)}
+}
+sample_df = pd.DataFrame(sample_data)
+
+sample_output = BytesIO()
+sample_df.to_excel(sample_output, index=False, engine='openpyxl')
+sample_output.seek(0)
+
+# Automatically shows the download button on load
+st.sidebar.download_button(
+    label="📄 Download Sample Input File",
+    data=sample_output,
+    file_name="Sample_Course_Input.xlsx",
+    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+)
+
+# 2. File uploader
 input_file = st.sidebar.file_uploader("Upload Input Excel File", type=["xlsx"], key="input")
 
 # Define output format columns (Embedded)
@@ -20,6 +44,7 @@ output_format_columns += [f'st2-{i}' for i in range(1, 11)]
 output_format_columns += [f'ete-q{i}' for i in range(1, 14)]
 flat_template = pd.DataFrame(columns=output_format_columns)
 
+# 3. Processing uploaded file
 if input_file:
     input_df = pd.read_excel(input_file)
     course_codes = input_df['course-code'].unique()
@@ -36,27 +61,14 @@ if input_file:
                 'name': row['name']
             }
 
-            # Map st1-1 to st1-10
             for i in range(1, 11):
-                col = f'st1-{i}'
-                if col in row:
-                    data_row[col] = row[col]
-
-            # Map st2-1 to st2-10
-            for i in range(1, 11):
-                col = f'st2-{i}'
-                if col in row:
-                    data_row[col] = row[col]
-
-            # Map ete-q1 to ete-q13
+                data_row[f'st1-{i}'] = row.get(f'st1-{i}', '')
+                data_row[f'st2-{i}'] = row.get(f'st2-{i}', '')
             for i in range(1, 14):
-                col = f'ete-q{i}'
-                if col in row:
-                    data_row[col] = row[col]
+                data_row[f'ete-q{i}'] = row.get(f'ete-q{i}', '')
 
             data_rows.append(data_row)
 
-        # Final output DataFrame
         output_df = pd.concat([flat_template, pd.DataFrame(data_rows)], ignore_index=True)
 
         output_buffer = BytesIO()
@@ -65,14 +77,14 @@ if input_file:
         output_buffer.seek(0)
         output_files[f"output_{course}.xlsx"] = output_buffer
 
-    # Zip all output files
+    # 4. Zip all outputs
     zip_buffer = BytesIO()
     with zipfile.ZipFile(zip_buffer, "w") as zipf:
         for filename, file_buffer in output_files.items():
             zipf.writestr(filename, file_buffer.getvalue())
     zip_buffer.seek(0)
 
-    # Single download button for ZIP in sidebar
+    # 5. Download ZIP
     st.sidebar.download_button(
         label="📦 Download All Output Files as ZIP",
         data=zip_buffer,
