@@ -2,12 +2,10 @@ import streamlit as st
 import pandas as pd
 import io
 import random
-from math import floor
 
 st.sidebar.title(":rainbow[Dr. Sonu Sharma Apps]")
 st.sidebar.subheader("Input/Output")
 
-# Sample input for download
 sample_data = pd.DataFrame({'marks': [39.5, 38, 36.5, 40, 21]})
 sample_buffer = io.BytesIO()
 sample_data.to_excel(sample_buffer, index=False)
@@ -41,109 +39,141 @@ st.title("📊 Marks Division Panel")
 st.header(":green[Divide 'marks' Column into Divisions]")
 st.subheader(":blue[Equal and Random Divisions with neat decimals (0.25 steps)]")
 
-def round_to_step(value, step=0.25):
-    return round(value / step) * step
+def round_step(x, step=0.25):
+    """Round x to nearest multiple of step"""
+    return round(x / step) * step
 
-def split_marks_with_caps_step(total, divisions, mode, max_cap, step=0.25):
-    total = round(float(total), 2)
-    caps = [max_cap]*divisions if max_cap > 0 else [total]*divisions
-    caps = [round(c, 2) for c in caps]
-    result = [0.0] * divisions
-
-    if total == 0:
-        return result
-
-    # Fix sum helper
-    def fix_sum(arr, target):
-        diff = round(target - sum(arr), 2)
-        i = 0
-        while abs(diff) >= step and i < len(arr):
-            if diff > 0:
-                space = caps[i] - arr[i]
-                if space >= step:
-                    change = min(space, diff)
-                    change = floor(change / step) * step
-                    if change <= 0:
-                        i += 1
-                        continue
-                    arr[i] += change
-            else:
-                if arr[i] >= step:
-                    change = min(arr[i], abs(diff))
-                    change = floor(change / step) * step
-                    if change <= 0:
-                        i += 1
-                        continue
-                    arr[i] -= change
-            arr[i] = round(arr[i], 2)
-            diff = round(target - sum(arr), 2)
-            i += 1
-        return arr
-
-    if mode == "Equal":
+def distribute_equal(total, divisions, max_per_comp, step=0.25):
+    # If max_per_comp == 0, no cap
+    if max_per_comp <= 0 or max_per_comp >= total:
+        # Just divide equally and round
         base = total / divisions
-        for i in range(divisions):
-            val = min(base, caps[i])
-            result[i] = round_to_step(val, step)
+        res = [round_step(base, step)] * divisions
+    else:
+        # Cap at max_per_comp per division
+        base = min(total / divisions, max_per_comp)
+        res = [round_step(base, step)] * divisions
 
-        result = fix_sum(result, total)
+    # Adjust sum to total by distributing leftover carefully
+    current_sum = sum(res)
+    diff = round(total - current_sum, 2)
 
-    else:  # Random
-        remaining = total
+    # Increase divisions one by one if diff > 0 and can add without exceeding cap
+    i = 0
+    while diff >= step and i < divisions:
+        addable = max_per_comp - res[i] if max_per_comp > 0 else diff
+        addable = round(addable, 2)
+        if addable >= step:
+            add = min(addable, diff)
+            add = round_step(add, step)
+            res[i] += add
+            diff -= add
+            diff = round(diff, 2)
+        i += 1
+
+    # If diff < 0, reduce divisions similarly
+    i = 0
+    while diff <= -step and i < divisions:
+        reducible = res[i]
+        if reducible >= step:
+            sub = min(reducible, abs(diff))
+            sub = round_step(sub, step)
+            res[i] -= sub
+            diff += sub
+            diff = round(diff, 2)
+        i += 1
+
+    return res
+
+def distribute_random(total, divisions, max_per_comp, step=0.25):
+    # If no cap or cap > total, just generate random fractions scaled
+    if max_per_comp <= 0 or max_per_comp >= total:
+        vals = [random.random() for _ in range(divisions)]
+        s = sum(vals)
+        res = [round_step(total * v / s, step) for v in vals]
+    else:
+        # Generate capped random marks per division
+        # Generate random numbers capped at max_per_comp, then scale to total without exceeding caps
         attempts = 0
-        while remaining >= step and attempts < 10000:
-            i = random.randint(0, divisions - 1)
-            space = caps[i] - result[i]
-            if space < step:
+        max_attempts = 10000
+        while attempts < max_attempts:
+            vals = [random.uniform(0, max_per_comp) for _ in range(divisions)]
+            s = sum(vals)
+            if s == 0:
                 attempts += 1
                 continue
-            add = round_to_step(random.uniform(step, min(space, remaining)), step)
-            if add < step:
-                attempts += 1
-                continue
-            result[i] += add
-            result[i] = round(result[i], 2)
-            remaining = round(remaining - add, 2)
+            scale = total / s
+            res = [v * scale for v in vals]
+            # Check if any exceed cap after scaling
+            if all(r <= max_per_comp + 0.01 for r in res):
+                res = [round_step(r, step) for r in res]
+                break
             attempts += 1
+        else:
+            # Fallback equal if random can't find solution
+            res = distribute_equal(total, divisions, max_per_comp, step)
 
-        result = fix_sum(result, total)
+    # Adjust sum to total by adding or subtracting step carefully
+    current_sum = sum(res)
+    diff = round(total - current_sum, 2)
 
-    # Final cap check & non-negative
-    result = [min(round(val, 2), caps[i]) for i, val in enumerate(result)]
-    result = [max(0, v) for v in result]
+    # Try to fix positive diff by adding step to divisions that can add without exceeding cap
+    i = 0
+    while diff >= step and i < divisions:
+        can_add = max_per_comp - res[i] if max_per_comp > 0 else diff
+        can_add = round(can_add, 2)
+        if can_add >= step:
+            add = min(can_add, diff)
+            add = round_step(add, step)
+            res[i] += add
+            diff -= add
+            diff = round(diff, 2)
+        i += 1
 
-    return result
+    # Fix negative diff by subtracting step from divisions
+    i = 0
+    while diff <= -step and i < divisions:
+        can_sub = res[i]
+        if can_sub >= step:
+            sub = min(can_sub, abs(diff))
+            sub = round_step(sub, step)
+            res[i] -= sub
+            diff += sub
+            diff = round(diff, 2)
+        i += 1
+
+    # Final safety cap check
+    res = [min(max_per_comp if max_per_comp > 0 else total, round_step(v, step)) for v in res]
+    return res
 
 def process_row(row):
-    out = {}
     val = row.get('marks')
     invalid = False
     try:
         val = float(val)
         if val < 0:
             invalid = True
+            val = 0
     except:
         invalid = True
         val = 0
 
-    # Check if original marks have decimal part
+    # Check if original marks have decimals
     has_decimal = (val != int(val))
-
-    # Use step 0.25 if decimals exist, else 1
     step = 0.25 if has_decimal else 1.0
 
-    # If max_per_component=0, disable cap by setting to large number
-    cap = max_per_component if max_per_component > 0 else val + 1000
+    max_comp = max_per_component if max_per_component > 0 else 0
 
-    divisions_values = split_marks_with_caps_step(val, num_divisions, division_type, cap, step)
+    if division_type == "Equal":
+        divisions = distribute_equal(val, num_divisions, max_comp, step)
+    else:
+        divisions = distribute_random(val, num_divisions, max_comp, step)
 
-    # If original marks are integer, convert all divisions to int
+    # Convert to int if no decimals in original marks
     if not has_decimal:
-        divisions_values = [int(round(v)) for v in divisions_values]
+        divisions = [int(round(x)) for x in divisions]
 
-    for i, v in enumerate(divisions_values, start=1):
-        out[f"div_{i}"] = v
-
+    out = {f"div_{i+1}": divisions[i] for i in range(num_divisions)}
     out['marks'] = val
     return out, invalid
 
