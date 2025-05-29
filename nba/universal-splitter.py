@@ -35,9 +35,9 @@ max_per_component = st.sidebar.number_input(
 
 process_button = st.sidebar.button("Start Processing")
 
-st.title("📊 Marks Division Panel")
-st.header(":green[Divide 'marks' Column into Divisions]")
-st.subheader(":blue[Equal and Random Divisions with neat decimals (0.25 steps)]")
+st.title("📊 Universal Marks Processing Panel")
+st.header(":green[Universal Marks Division]")
+st.subheader(":blue[Equal/Random Divisions with choice for number of divisions]")
 
 def round_step(x, step=0.25):
     """Round x to nearest multiple of step"""
