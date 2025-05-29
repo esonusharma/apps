@@ -28,7 +28,7 @@ num_divisions = st.sidebar.number_input("Number of divisions", min_value=1, max_
 division_type = st.sidebar.selectbox("Division type", ["Equal", "Random"])
 
 max_per_component = st.sidebar.number_input(
-    "Max marks per component (optional)", min_value=0.0, value=100.0, step=0.5,
+    "Max marks per component (optional)", min_value=0.0, value=10.0, step=0.5,
     help="Only applies to Equal division. Set to 0 to disable limit."
 )
 
