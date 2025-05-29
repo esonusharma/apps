@@ -7,10 +7,10 @@ from openpyxl import load_workbook
 from openpyxl.styles import Border, Side, Alignment, PatternFill
 from openpyxl.utils import get_column_letter
 
+# Sidebar
 st.sidebar.title(":rainbow[Dr. Sonu Sharma Apps]")
 st.sidebar.subheader("Input/Output")
 
-# Sample input file
 sample_data = pd.DataFrame({'marks': [39.5, 38, 36.5, 40, 21]})
 sample_buffer = io.BytesIO()
 sample_data.to_excel(sample_buffer, index=False)
@@ -24,13 +24,9 @@ st.sidebar.download_button(
 
 uploaded_file = st.sidebar.file_uploader("Upload Excel file (1 column: marks)", type=["xlsx"])
 
-num_divisions = st.sidebar.number_input("Number of divisions", min_value=1, max_value=100, value=5, step=1)
+num_divisions = st.sidebar.number_input("Number of divisions", min_value=1, max_value=100, value=5)
 division_type = st.sidebar.selectbox("Division type", ["Equal", "Random"])
-
-max_per_component = st.sidebar.number_input(
-    "Max marks per component (optional)", min_value=0.0, value=10.0, step=0.5,
-    help="Only applies to Equal division. Set to 0 to disable limit."
-)
+max_per_component = st.sidebar.number_input("Max marks per component (optional)", min_value=0.0, value=10.0, step=0.5)
 
 process_button = st.sidebar.button("Start Processing")
 
@@ -38,71 +34,60 @@ st.title("📊 Marks Division Panel")
 st.header(":green[Divide 'marks' Column into Divisions]")
 st.subheader(":blue[Supports Equal and Random Divisions with Decimal/Integer Precision]")
 
+# Core logic
 def split_single_column_marks(total, divisions, division_type, max_component):
     total = round(float(total), 2)
 
     if division_type == "Equal":
         base = round(total / divisions, 2)
-        result = [base] * divisions
-        diff = round(total - sum(result), 2)
-        result[-1] = round(result[-1] + diff, 2)
+        result = [min(base, max_component) if max_component > 0 else base for _ in range(divisions)]
 
-        if max_component > 0:
-            adjusted = []
-            for val in result:
-                adjusted.append(min(val, max_component))
-            sum_adj = sum(adjusted)
-            if sum_adj < total:
-                remaining = round(total - sum_adj, 2)
-                for i in range(len(adjusted)):
-                    if adjusted[i] < max_component:
-                        addable = min(max_component - adjusted[i], remaining)
-                        adjusted[i] = round(adjusted[i] + addable, 2)
-                        remaining = round(remaining - addable, 2)
-                        if remaining <= 0:
-                            break
-            result = adjusted
+        current_sum = round(sum(result), 2)
+        diff = round(total - current_sum, 2)
 
-    else:  # Random
+        for i in range(divisions):
+            if diff <= 0:
+                break
+            addable = min(max_component - result[i], diff) if max_component > 0 else diff
+            addable = round(addable, 2)
+            if addable > 0:
+                result[i] = round(result[i] + addable, 2)
+                diff = round(diff - addable, 2)
+
+    else:  # Random division
         if total == 0:
-            return [0] * divisions
+            return [0.0] * divisions
 
-        int_part = int(total)
-        frac_part = round(total - int_part, 2)
+        result = [0.0] * divisions
+        remaining = total
+        max_c = max_component if max_component > 0 else total
 
-        if frac_part == 0:
-            if int_part < divisions:
-                parts = [1]*int_part + [0]*(divisions - int_part)
-                random.shuffle(parts)
-            else:
-                points = sorted(random.sample(range(1, int_part + divisions), divisions - 1))
-                parts = [points[0]]
-                for i in range(1, len(points)):
-                    parts.append(points[i] - points[i-1])
-                parts.append(int_part + divisions - points[-1])
-                parts = [p - 1 for p in parts]
-            result = parts
-        else:
-            if int_part < divisions:
-                parts = [1]*int_part + [0]*(divisions - int_part)
-                random.shuffle(parts)
-            else:
-                points = sorted(random.sample(range(1, int_part + divisions), divisions - 1))
-                parts = [points[0]]
-                for i in range(1, len(points)):
-                    parts.append(points[i] - points[i-1])
-                parts.append(int_part + divisions - points[-1])
-                parts = [p - 1 for p in parts]
+        while round(remaining, 2) > 0:
+            i = random.randint(0, divisions - 1)
+            space = max_c - result[i]
+            if space <= 0:
+                continue
+            add = round(random.uniform(0.1, min(remaining, space)), 2)
+            result[i] = round(result[i] + add, 2)
+            remaining = round(remaining - add, 2)
 
-            idx = random.randint(0, divisions - 1)
-            parts[idx] = round(parts[idx] + frac_part, 2)
-            result = parts
+    # Final adjustment
+    result = [round(min(v, max_component), 2) if max_component > 0 else round(v, 2) for v in result]
+    final_sum = round(sum(result), 2)
+    diff = round(total - final_sum, 2)
 
-    result = [round(max(0, val), 2) for val in result]
-    diff = round(total - sum(result), 2)
-    if abs(diff) > 0.01:
-        result[-1] = round(result[-1] + diff, 2)
+    for i in range(divisions):
+        if diff == 0:
+            break
+        space = max_component - result[i] if max_component > 0 else diff
+        if space <= 0:
+            continue
+        add = round(min(diff, space), 2)
+        result[i] = round(result[i] + add, 2)
+        diff = round(diff - add, 2)
 
+    # Integer result if input is integer
+    result = [round(v, 2) for v in result]
     if float(total).is_integer():
         result = list(map(int, result))
 
@@ -141,8 +126,6 @@ def process_row(row):
     invalid = False
     val = row.get('marks')
     try:
-        if pd.isnull(val) or val == "":
-            raise ValueError("Empty value")
         val = float(val)
         if val < 0:
             invalid = True
@@ -151,9 +134,10 @@ def process_row(row):
         val = 0
 
     divisions_values = split_single_column_marks(val, num_divisions, division_type, max_per_component)
-    out['marks'] = val
     for i, v in enumerate(divisions_values, start=1):
         out[f"div_{i}"] = v
+
+    out['marks'] = val
     return out, invalid
 
 def process_file(file):
@@ -161,7 +145,6 @@ def process_file(file):
     if 'marks' not in df.columns:
         st.warning(f"File does not contain 'marks' column.")
         return None
-
     processed = []
     invalid_rows = []
 
@@ -176,17 +159,16 @@ def process_file(file):
     out_df.to_excel(buffer, index=False)
     buffer.seek(0)
     styled_output = style_excel(buffer, invalid_rows)
-    return styled_output, out_df
+    return styled_output
 
+# Process and auto download
 if process_button and uploaded_file:
-    styled_file, preview_df = process_file(uploaded_file)
-    if styled_file:
-        st.success("✅ Processing complete! File ready to download.")
-        st.dataframe(preview_df.head(10))
+    result_file = process_file(uploaded_file)
+    if result_file:
+        st.success("✅ File processed successfully. Your download will start below:")
         st.download_button(
-            label="📥 Download Processed Excel File",
-            data=styled_file,
+            label="📥 Download Processed File",
+            data=result_file,
             file_name=f"processed_{uploaded_file.name}",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            use_container_width=True
         )
