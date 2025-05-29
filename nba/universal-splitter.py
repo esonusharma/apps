@@ -1,17 +1,13 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
 import io
 import random
-from openpyxl import load_workbook
-from openpyxl.styles import Border, Side, Alignment, PatternFill
-from openpyxl.utils import get_column_letter
+from math import floor
 
-# Sidebar setup
 st.sidebar.title(":rainbow[Dr. Sonu Sharma Apps]")
 st.sidebar.subheader("Input/Output")
 
-# Download sample input
+# Sample input for download
 sample_data = pd.DataFrame({'marks': [39.5, 38, 36.5, 40, 21]})
 sample_buffer = io.BytesIO()
 sample_data.to_excel(sample_buffer, index=False)
@@ -23,153 +19,169 @@ st.sidebar.download_button(
     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 )
 
-# File upload and settings
-uploaded_file = st.sidebar.file_uploader("Upload Excel file (1 column: marks)", type=["xlsx"])
-num_divisions = st.sidebar.number_input("Number of divisions", min_value=1, max_value=100, value=5)
+uploaded_files = st.sidebar.file_uploader(
+    "Upload Excel files (1 column: marks)", 
+    type=["xlsx"], 
+    accept_multiple_files=True
+)
+
+num_divisions = st.sidebar.number_input(
+    "Number of divisions", min_value=1, max_value=100, value=5, step=1
+)
 division_type = st.sidebar.selectbox("Division type", ["Equal", "Random"])
-max_per_component_str = st.sidebar.text_input("Max marks per component (optional, comma-separated)", value="")
+max_per_component = st.sidebar.number_input(
+    "Max marks per component (optional, 0 disables)", 
+    min_value=0.0, value=10.0, step=0.25,
+    help="Max marks per division component. 0 disables limit."
+)
 
 process_button = st.sidebar.button("Start Processing")
 
-# Title area
 st.title("📊 Marks Division Panel")
 st.header(":green[Divide 'marks' Column into Divisions]")
-st.subheader(":blue[Supports Equal and Random Divisions with Optional Per-Division Max]")
+st.subheader(":blue[Equal and Random Divisions with neat decimals (0.25 steps)]")
 
-# Parse max caps
-def parse_max_caps(text, divisions):
-    if not text.strip():
-        return [float('inf')] * divisions
-    try:
-        caps = [float(x.strip()) for x in text.split(',')]
-        if len(caps) != divisions:
-            return None
-        return caps
-    except:
-        return None
+def round_to_step(value, step=0.25):
+    return round(value / step) * step
 
-# Split marks into components
-def split_marks(total, divisions, mode, caps):
+def split_marks_with_caps_step(total, divisions, mode, max_cap, step=0.25):
     total = round(float(total), 2)
+    caps = [max_cap]*divisions if max_cap > 0 else [total]*divisions
+    caps = [round(c, 2) for c in caps]
     result = [0.0] * divisions
 
     if total == 0:
         return result
 
-    if mode == "Equal":
-        per = total / divisions
-        for i in range(divisions):
-            result[i] = min(round(per, 2), caps[i])
-        diff = round(total - sum(result), 2)
-
+    # Fix sum helper
+    def fix_sum(arr, target):
+        diff = round(target - sum(arr), 2)
         i = 0
-        while diff > 0:
-            space = caps[i] - result[i]
-            if space > 0:
-                add = min(space, diff)
-                result[i] = round(result[i] + add, 2)
-                diff = round(diff - add, 2)
-            i = (i + 1) % divisions
-    else:
+        while abs(diff) >= step and i < len(arr):
+            if diff > 0:
+                space = caps[i] - arr[i]
+                if space >= step:
+                    change = min(space, diff)
+                    change = floor(change / step) * step
+                    if change <= 0:
+                        i += 1
+                        continue
+                    arr[i] += change
+            else:
+                if arr[i] >= step:
+                    change = min(arr[i], abs(diff))
+                    change = floor(change / step) * step
+                    if change <= 0:
+                        i += 1
+                        continue
+                    arr[i] -= change
+            arr[i] = round(arr[i], 2)
+            diff = round(target - sum(arr), 2)
+            i += 1
+        return arr
+
+    if mode == "Equal":
+        base = total / divisions
+        for i in range(divisions):
+            val = min(base, caps[i])
+            result[i] = round_to_step(val, step)
+
+        result = fix_sum(result, total)
+
+    else:  # Random
         remaining = total
-        while round(remaining, 2) > 0:
+        attempts = 0
+        while remaining >= step and attempts < 10000:
             i = random.randint(0, divisions - 1)
             space = caps[i] - result[i]
-            if space <= 0:
+            if space < step:
+                attempts += 1
                 continue
-            add = round(random.uniform(0.1, min(space, remaining)), 2)
+            add = round_to_step(random.uniform(step, min(space, remaining)), step)
+            if add < step:
+                attempts += 1
+                continue
             result[i] += add
             result[i] = round(result[i], 2)
             remaining = round(remaining - add, 2)
+            attempts += 1
 
-    # Final correction
-    result = [min(round(x, 2), caps[i]) for i, x in enumerate(result)]
-    diff = round(total - sum(result), 2)
-    for i in range(divisions):
-        if diff <= 0:
-            break
-        space = caps[i] - result[i]
-        if space > 0:
-            add = min(space, diff)
-            result[i] += add
-            result[i] = round(result[i], 2)
-            diff -= add
+        result = fix_sum(result, total)
 
-    if float(total).is_integer():
-        result = list(map(int, result))
+    # Final cap check & non-negative
+    result = [min(round(val, 2), caps[i]) for i, val in enumerate(result)]
+    result = [max(0, v) for v in result]
+
     return result
 
-# Style the output Excel file
-def style_output_excel(buffer, highlight_rows):
-    wb = load_workbook(buffer)
-    ws = wb.active
+def process_row(row):
+    out = {}
+    val = row.get('marks')
+    invalid = False
+    try:
+        val = float(val)
+        if val < 0:
+            invalid = True
+    except:
+        invalid = True
+        val = 0
 
-    thin = Border(left=Side(style='thin'), right=Side(style='thin'),
-                  top=Side(style='thin'), bottom=Side(style='thin'))
-    center = Alignment(horizontal="center", vertical="center")
-    yellow = PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
-    red = PatternFill(start_color="FFCCCC", end_color="FFCCCC", fill_type="solid")
+    # Check if original marks have decimal part
+    has_decimal = (val != int(val))
 
-    for row in ws.iter_rows():
-        for cell in row:
-            cell.alignment = center
-            cell.border = thin
-            if cell.row == 1:
-                cell.fill = yellow
-            elif cell.row - 2 in highlight_rows:
-                cell.fill = red
+    # Use step 0.25 if decimals exist, else 1
+    step = 0.25 if has_decimal else 1.0
 
-    for col in ws.columns:
-        max_len = max((len(str(cell.value)) if cell.value else 0) for cell in col)
-        ws.column_dimensions[get_column_letter(col[0].column)].width = max_len + 2
+    # If max_per_component=0, disable cap by setting to large number
+    cap = max_per_component if max_per_component > 0 else val + 1000
 
-    styled_buffer = io.BytesIO()
-    wb.save(styled_buffer)
-    styled_buffer.seek(0)
-    return styled_buffer
+    divisions_values = split_marks_with_caps_step(val, num_divisions, division_type, cap, step)
 
-# Process row by row
-def process_marks(df, divisions, mode, caps):
-    result_data = []
-    highlight_rows = []
+    # If original marks are integer, convert all divisions to int
+    if not has_decimal:
+        divisions_values = [int(round(v)) for v in divisions_values]
+
+    for i, v in enumerate(divisions_values, start=1):
+        out[f"div_{i}"] = v
+
+    out['marks'] = val
+    return out, invalid
+
+def process_file(file):
+    df = pd.read_excel(file)
+    if 'marks' not in df.columns:
+        st.warning(f"File '{file.name}' does not contain 'marks' column.")
+        return None
+    processed = []
+    invalid_rows = []
 
     for idx, row in df.iterrows():
-        mark = row.get('marks')
-        try:
-            mark = float(mark)
-            if mark < 0:
-                raise ValueError
-        except:
-            mark = 0
-            highlight_rows.append(idx)
+        processed_row, is_invalid = process_row(row)
+        processed.append(processed_row)
+        if is_invalid:
+            invalid_rows.append(idx)
 
-        parts = split_marks(mark, divisions, mode, caps)
-        record = {'marks': mark}
-        for i, val in enumerate(parts, 1):
-            record[f'div_{i}'] = val
-        result_data.append(record)
+    out_df = pd.DataFrame(processed)
 
-    out_df = pd.DataFrame(result_data)
     buffer = io.BytesIO()
     out_df.to_excel(buffer, index=False)
     buffer.seek(0)
-    return style_output_excel(buffer, highlight_rows)
+    return buffer, invalid_rows, file.name
 
-# Run the processing
-if process_button and uploaded_file:
-    caps = parse_max_caps(max_per_component_str, num_divisions)
-    if caps is None:
-        st.error("❌ Max marks list must have the same number of values as divisions.")
-    else:
-        df = pd.read_excel(uploaded_file)
-        if 'marks' not in df.columns:
-            st.error("❌ Uploaded file must contain a 'marks' column.")
-        else:
-            result_file = process_marks(df, num_divisions, division_type, caps)
-            st.success("✅ File processed successfully.")
+if process_button and uploaded_files:
+    for file in uploaded_files:
+        processed_buffer, invalid_rows, filename = process_file(file)
+        if processed_buffer is not None:
+            st.success(f"✅ Processed: {filename}")
             st.download_button(
-                label="📥 Download Processed File",
-                data=result_file,
-                file_name=f"processed_{uploaded_file.name}",
+                label=f"📥 Download processed '{filename}'",
+                data=processed_buffer,
+                file_name=f"processed_{filename}",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                key=filename
             )
+            if invalid_rows:
+                st.warning(f"⚠️ Some invalid rows detected in '{filename}': {invalid_rows}")
+
+if not uploaded_files:
+    st.info("Upload one or more Excel files with a single column named 'marks' to start.")
